@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cafe Nogales Green Bean Physical Measurement System</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#059669">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link class="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/5016/5016839.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .active-btn { background-color: #059669 !important; color: white !important; border-color: #059669 !important; }
+    .accordion-content { transition: max-height 0.3s ease-out; overflow: hidden; }
+    .accordion-content.closed { max-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen pb-16 font-sans text-gray-800">
+
+  <div class="max-w-md mx-auto px-4 pt-6">
+    <!-- 상단 헤더 -->
+    <header class="mb-5 flex justify-between items-center bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+      <div>
+        <h1 id="txt-app-title" class="text-lg font-bold text-gray-900">물리 측정 결과 입력기</h1>
+        <p class="text-[10px] text-gray-400 font-mono">Cafe Nogales Q.C System</p>
+      </div>
+      <div class="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200">
+        <button type="button" onclick="changeLanguage('ko')" id="btn-lang-ko" class="px-2.5 py-1 text-xs font-bold rounded-md transition-all bg-white shadow-sm text-emerald-600">KO</button>
+        <button type="button" onclick="changeLanguage('en')" id="btn-lang-en" class="px-2.5 py-1 text-xs font-bold rounded-md transition-all text-gray-400">EN</button>
+      </div>
+    </header>
+
+    <!-- 임시저장 패널 -->
+    <div class="mb-5 bg-emerald-50 border border-emerald-150 p-4 rounded-xl flex items-center justify-between gap-3 shadow-sm">
+      <div class="flex-1">
+        <label id="lbl-draft" class="block text-xs font-bold text-emerald-800 mb-1">📁 진행 중인 임시저장 데이터 불러오기</label>
+        <select id="draftSelect" class="w-full bg-white border border-emerald-200 rounded-lg p-2 text-xs text-gray-700 focus:outline-none shadow-sm">
+          <option value="">-- 새로 작성하기 또는 목록 새로고침 --</option>
+        </select>
+      </div>
+      <button type="button" id="btn-refresh" onclick="loadDraftList()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-3 rounded-lg shadow-sm h-fit self-end transition-all">
+        🔄 새로고침
+      </button>
+    </div>
+
+    <!-- 로딩 인디케이터 (네트워크 작업 중 표시) -->
+    <div id="loader" class="hidden fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
+      <div class="bg-white p-5 rounded-xl shadow-lg flex flex-col items-center space-y-3">
+        <div class="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+        <p id="txt-loading" class="text-xs font-bold text-gray-600">서버와 동기화 중...</p>
+      </div>
+    </div>
+
+    <form id="qcForm" class="space-y-4">
+      <input type="hidden" id="currentRowId" value="">
+
+      <!-- 기본 정보 -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <button type="button" class="w-full px-4 py-3 bg-gray-50 flex justify-between items-center border-b border-gray-150 font-bold text-sm text-gray-800" onclick="toggleAccordion(this)">
+          <span id="lbl-sec1">기본 정보</span>
+          <span class="arrow text-xs text-gray-400">▲</span>
+        </button>
+        <div class="accordion-content p-4 space-y-3">
+          <div>
+            <label id="lbl-coffeeName" class="block text-xs font-semibold text-gray-600 mb-1">커피 이름</label>
+            <input type="text" id="coffeeNameInput" required class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 outline-none">
+          </div>
+          <div>
+            <label id="lbl-grade" class="block text-xs font-semibold text-gray-600 mb-1">Grade</label>
+            <div class="grid grid-cols-2 gap-2" id="group_grade">
+              <button type="button" data-value="Microlot" class="py-2 text-xs font-medium border border-gray-200 rounded-lg bg-gray-50 select-single">Microlot</button>
+              <button type="button" data-value="Regional" class="py-2 text-xs font-medium border border-gray-200 rounded-lg bg-gray-50 select-single">Regional</button>
+            </div>
+          </div>
+          <div>
+            <label id="lbl-date" class="block text-xs font-semibold text-gray-600 mb-1">측정 날짜 (Date)</label>
+            <input type="date" id="dateInput" required class="w-full p-2 border border-gray-300 rounded-lg text-sm outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- 원산지 정보 -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <button type="button" class="w-full px-4 py-3 bg-gray-50 flex justify-between items-center border-b border-gray-150 font-bold text-sm text-gray-800" onclick="toggleAccordion(this, true)">
+          <span id="lbl-sec2">원산지 정보</span>
+          <span class="arrow text-xs text-gray-400">▼</span>
+        </button>
+        <div class="accordion-content closed p-4 space-y-3">
+          <div>
+            <label id="lbl-humidityOrigin" class="block text-xs font-semibold text-gray-600 mb-1">원산지 수분율 (Humidity-Origin)</label>
+            <div class="relative">
+              <input type="number" id="humidityOriginInput" step="0.01" min="0" placeholder="0.00" class="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm outline-none">
+              <span class="absolute right-3 top-2.5 text-xs text-gray-400">%</span>
+            </div>
+          </div>
+          <div>
+            <label id="lbl-waterActivityOrigin" class="block text-xs font-semibold text-gray-600 mb-1">원산지 수분활성도 (Water Activity-Origin)</label>
+            <input type="number" id="waterActivityOriginInput" step="0.001" min="0" max="1" placeholder="0.000" class="w-full p-2 border border-gray-300 rounded-lg text-sm outline-none">
+          </div>
+          <div>
+            <label id="lbl-awTempOrigin" class="block text-xs font-semibold text-gray-600 mb-1">원산지 수분활성도 온도 (Aw Temp-Origin)</label>
+            <div class="relative">
+              <input type="number" id="awTempOriginInput" step="0.01" placeholder="0.00" class="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm outline-none">
+              <span class="absolute right-3 top-2.5 text-xs text-gray-400">°C</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 수분활성도 측정 장비 (Rotronic & Omix) -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <button type="button" class="w-full px-4 py-3 bg-gray-50 flex justify-between items-center border-b border-gray-150 font-bold text-sm text-gray-800" onclick="toggleAccordion(this, true)">
+          <span id="lbl-sec3">수분활성도 장비 (Rotronic & Omix)</span>
+          <span class="arrow text-xs text-gray-400">▼</span>
+        </button>
+        <div class="accordion-content closed p-4 space-y-4">
+          <!-- Rotronic -->
+          <div class="border-b pb-3 space-y-3">
+            <h3 class="text-xs font-bold text-emerald-800 border-l-2 border-emerald-500 pl-1.5 font-mono">Rotronic HygroLab</h3>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label id="lbl-rotronicAw" class="block text-[10px] font-semibold text-gray-500 mb-0.5">수분활성도 (aW)</label>
+                <input type="number" id="rotronicAwInput" step="0.001" min="0" max="1" placeholder="0.000" class="w-full p-2 border border-gray-300 rounded-lg text-xs outline-none">
+              </div>
+              <div>
+                <label id="lbl-rotronicTemp" class="block text-[10px] font-semibold text-gray-500 mb-0.5">온도 (aW Temp)</label>
+                <input type="number" id="rotronicTempInput" step="0.01" placeholder="0.00 °C" class="w-full p-2 border border-gray-300 rounded-lg text-xs outline-none">
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 bg-gray-50 p-2.5 rounded-lg border border-gray-150">
+              <div>
+                <label id="lbl-rotronicAwOffset" class="block text-[10px] font-semibold text-gray-600 mb-0.5">aW Offset 🔄</label>
+                <input type="number" id="rotronicAwOffsetInput" step="0.001" placeholder="0.000" class="w-full p-2 border border-gray-300 rounded-lg text-xs outline-none bg-white">
+              </div>
+              <div>
+                <label id="lbl-rotronicTempOffset" class="block text-[10px] font-semibold text-gray-600 mb-0.5">Temp Offset 🔄</label>
+                <input type="number" id="rotronicTempOffsetInput" step="0.01" placeholder="0.00 °C" class="w-full p-2 border border-gray-300 rounded-lg text-xs outline-none bg-white">
+              </div>
+              <p class="col-span-2 text-[9px] text-gray-400 leading-tight">🔄 직전 레코드에 입력된 데이터를 유지합니다.</p>
+            </div>
+          </div>
+
+          <!-- Omix -->
+          <div class="space-y-3">
+            <h3 class="text-xs font-bold text-emerald-800 border-l-2 border-emerald-500 pl-1.5 font-mono">Omix aW Meter</h3>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-150 flex flex-col justify-between">
+                <div>
+                  <label id="lbl-omixAw" class="block text-[10px] font-semibold text-gray-600 mb-0.5">수분활성도 🔄</label>
+                  <input type="number" id="omixAwInput" step="0.001" min="0" max="1" placeholder="0.000" class="w-full p-2 border border-gray-300 rounded-lg text-xs outline-none bg-white">
+                </div>
+                <p class="text-[9px] text-gray-400 leading-tight mt-1">🔄 직전 입력 유지</p>
+              </div>
+              <div>
+                <label id="lbl-omixTemp" class="block text-[10px] font-semibold text-gray-500 mb-0.5">온도 (aW Temp)</label>
+                <input type="number" id="omixTempInput" step="0.1" placeholder="0.0 °C" class="w-full p-2 border border-gray-300 rounded-lg text-xs outline-none">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 수분 및 밀도 측정 장비 (Lighttells & CoffMeter) -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <button type="button" class="w-full px-4 py-3 bg-gray-50 flex justify-between items-center border-b border-gray-150 font-bold text-sm text-gray-800" onclick="toggleAccordion(this, true)">
+          <span id="lbl-sec4">수분/밀도 장비 (Lighttells & CoffMeter)</span>
+          <span class="arrow text-xs text-gray-400">▼</span>
+        </button>
+        <div class="accordion-content closed p-4 space-y-4">
+          <!-- Lighttells -->
+          <div class="border-b pb-3 space-y-3">
+            <h3 class="text-xs font-bold text-emerald-800 border-l-2 border-emerald-500 pl-1.5 font-mono">Lighttells AW-600</h3>
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label id="lbl-lighttellsHum" class="block text-[9px] font-semibold text-gray-500 mb-0.5">수분율 (%)</label>
+                <input type="number" id="lighttellsHumInput" step="0.1" placeholder="0.0 %" class="w-full p-1.5 border border-gray-300 rounded-lg text-xs outline-none">
+              </div>
+              <div>
+                <label id="lbl-lighttellsTemp" class="block text-[9px] font-semibold text-gray-500 mb-0.5">온도 (°C)</label>
+                <input type="number" id="lighttellsTempInput" step="0.1" placeholder="0.0 °C" class="w-full p-1.5 border border-gray-300 rounded-lg text-xs outline-none">
+              </div>
+              <div>
+                <label id="lbl-lighttellsDens" class="block text-[9px] font-semibold text-gray-500 mb-0.5">밀도 (g/L)</label>
+                <input type="number" id="lighttellsDensInput" step="1" placeholder="정수" class="w-full p-1.5 border border-gray-300 rounded-lg text-xs outline-none">
+              </div>
+            </div>
+          </div>
+
+          <!-- CoffMeter -->
+          <div class="space-y-3">
+            <h3 class="text-xs font-bold text-emerald-800 border-l-2 border-emerald-500 pl-1.5 font-mono">CoffMeter</h3>
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label id="lbl-coffmeterHum" class="block text-[9px] font-semibold text-gray-500 mb-0.5">수분율 (%)</label>
+                <input type="number" id="coffmeterHumInput" step="0.1" placeholder="0.0 %" class="w-full p-1.5 border border-gray-300 rounded-lg text-xs outline-none">
+              </div>
+              <div>
+                <label id="lbl-coffmeterTemp" class="block text-[9px] font-semibold text-gray-500 mb-0.5">온도 (°C)</label>
+                <input type="number" id="coffmeterTempInput" step="0.1" placeholder="0.0 °C" class="w-full p-1.5 border border-gray-300 rounded-lg text-xs outline-none">
+              </div>
+              <div>
+                <label id="lbl-coffmeterDens" class="block text-[9px] font-semibold text-gray-500 mb-0.5">밀도 (g/L)</label>
+                <input type="number" id="coffmeterDensInput" step="1" placeholder="정수" class="w-full p-1.5 border border-gray-300 rounded-lg text-xs outline-none">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 기타 및 외관 정보 -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <button type="button" class="w-full px-4 py-3 bg-gray-50 flex justify-between items-center border-b border-gray-150 font-bold text-sm text-gray-800" onclick="toggleAccordion(this, true)">
+          <span id="lbl-sec5">기타 및 외관 정보</span>
+          <span class="arrow text-xs text-gray-400">▼</span>
+        </button>
+        <div class="accordion-content closed p-4 space-y-4">
+          <div>
+            <label id="lbl-hardness" class="block text-xs font-semibold text-gray-600 mb-1.5">경도 (Hardness)</label>
+            <div class="grid grid-cols-3 gap-2" id="group_hardness">
+              <button type="button" data-value="" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single active-btn">설정 안 함</button>
+              <button type="button" data-value="Low" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single">Low</button>
+              <button type="button" data-value="Medium-Low" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single">Med-Low</button>
+              <button type="button" data-value="Medium" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single">Medium</button>
+              <button type="button" data-value="Medium-High" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single">Med-High</button>
+              <button type="button" data-value="High" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single">High</button>
+            </div>
+          </div>
+
+          <div>
+            <label id="lbl-size" class="block text-xs font-semibold text-gray-600 mb-1.5">크기 (Size)</label>
+            <div class="grid grid-cols-3 gap-2" id="group_size">
+              <button type="button" data-value="" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single active-btn">설정 안 함</button>
+              <button type="button" data-value="Small" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single">Small</button>
+              <button type="button" data-value="Medium-Small" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single">Med-Small</button>
+              <button type="button" data-value="Medium" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single">Medium</button>
+              <button type="button" data-value="Medium-Large" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single">Med-Large</button>
+              <button type="button" data-value="Large" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single">Large</button>
+            </div>
+          </div>
+
+          <div>
+            <label id="lbl-ikawaProfile" class="block text-xs font-semibold text-gray-600 mb-1">이카와 프로필 (Ikawa Profile)</label>
+            <input type="text" id="ikawaProfileInput" class="w-full p-2 border border-gray-300 rounded-lg text-sm outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- 저장 버튼 -->
+      <div class="grid grid-cols-2 gap-4 pt-4">
+        <button type="button" id="btn-draft" onclick="submitData('Draft')" class="w-full py-4 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow-md transition-all text-sm active:scale-95">
+          💾 임시 저장
+        </button>
+        <button type="button" id="btn-complete" onclick="submitData('Completed')" class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-all text-sm active:scale-95">
+          🚀 검사 완료
+        </button>
+      </div>
+
+    </form>
+  </div>
+
+  <script>
+    // 🛑 [구글 앱스크립트 웹앱 주소 세팅]
+    const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyt9DBHerBcE2uBncTy8-66KOWFuBk6DX3pxPbPnplfN7niizXq8pV1TJ6MuVmJtKyr/exec";
+
+    let currentLang = "ko";
+    let activeDraftsList = [];
+
+    // 다국어 라벨 사전
+    const UI_LANG = {
+      ko: {
+        title: "물리 측정 결과 입력기",
+        draftLabel: "📁 진행 중인 임시저장 데이터 불러오기",
+        draftEmpty: "-- 새로 작성하기 또는 목록 새로고침 --",
+        refreshBtn: "🔄 새로고침",
+        sec1: "1. 기본 정보",
+        sec2: "2. 원산지 정보",
+        sec3: "3. 수분활성도 장비 (Rotronic & Omix)",
+        sec4: "4. 수분/밀도 장비 (Lighttells & CoffMeter)",
+        sec5: "5. 기타 및 외관 정보",
+        coffeeName: "커피 이름",
+        grade: "Grade",
+        date: "측정 날짜 (Date)",
+        humidityOrigin: "원산지 수분율 (Humidity-Origin)",
+        waterActivityOrigin: "원산지 수분활성도 (Water Activity-Origin)",
+        awTempOrigin: "원산지 수분활성도 온도 (Aw Temp-Origin)",
+        rotronicAw: "수분활성도 (aW)",
+        rotronicTemp: "온도 (aW Temp)",
+        rotronicAwOffset: "aW Offset 🔄",
+        rotronicTempOffset: "Temp Offset 🔄",
+        omixAw: "수분활성도 🔄",
+        omixTemp: "온도 (aW Temp)",
+        lighttellsHum: "수분율 (%)",
+        lighttellsTemp: "온도 (°C)",
+        lighttellsDens: "밀도 (g/L)",
+        coffmeterHum: "수분율 (%)",
+        coffmeterTemp: "온도 (°C)",
+        coffmeterDens: "밀도 (g/L)",
+        hardness: "경도 (Hardness)",
+        size: "크기 (Size)",
+        ikawaProfile: "이카와 프로필 (Ikawa Profile)",
+        btnDraft: "💾 임시 저장",
+        btnComplete: "🚀 검사 완료",
+        loading: "서버와 동기화 중...",
+        confirmComplete: "⚠️ [검사 완료 최종 처리]\n\n정말로 작성을 완료하시겠습니까?\n완료된 데이터는 앱에서 더 이상 편집할 수 없도록 격리됩니다.",
+        confirmCompleteEn: "Are you sure you want to complete this inspection?\nCompleted data will be locked and isolated.",
+        alertCoffeeName: "⚠ 커피 이름을 먼저 입력해 주세요.",
+        alertCoffeeNameEn: "⚠ Please input the Coffee Name first.",
+        submitSuccess: "🎉 처리가 완료되었습니다!",
+        submitSuccessEn: "🎉 Data submitted successfully!",
+        errorFetch: "🛑 [Error] 임시저장 목록 갱신에 실패했습니다.",
+        errorSubmit: "❌ 통신 에러가 발생했습니다. 개발자 도구의 [Console] 탭을 확인하세요."
+      },
+      en: {
+        title: "Physical Measurement Inputter",
+        draftLabel: "📁 Load Draft Measurement Data",
+        draftEmpty: "-- Create New or Refresh List --",
+        refreshBtn: "🔄 Refresh",
+        sec1: "1. Basic Information",
+        sec2: "2. Origin Information",
+        sec3: "3. Water Activity (Rotronic & Omix)",
+        sec4: "4. Moisture & Density (Lighttells & CoffMeter)",
+        sec5: "5. Other & Appearance Information",
+        coffeeName: "Coffee Name",
+        grade: "Grade",
+        date: "Measurement Date (Date)",
+        humidityOrigin: "Humidity-Origin",
+        waterActivityOrigin: "Water Activity-Origin",
+        awTempOrigin: "Aw Temp-Origin",
+        rotronicAw: "Water Activity (aW)",
+        rotronicTemp: "Temp (aW Temp)",
+        rotronicAwOffset: "aW Offset 🔄",
+        rotronicTempOffset: "Temp Offset 🔄",
+        omixAw: "Water Activity 🔄",
+        omixTemp: "Temp (aW Temp)",
+        lighttellsHum: "Moisture (%)",
+        lighttellsTemp: "Temp (°C)",
+        lighttellsDens: "Density (g/L)",
+        coffmeterHum: "Moisture (%)",
+        coffmeterTemp: "Temp (°C)",
+        coffmeterDens: "Density (g/L)",
+        hardness: "Hardness",
+        size: "Size",
+        ikawaProfile: "Ikawa Profile",
+        btnDraft: "💾 Save Draft",
+        btnComplete: "🚀 Complete Inspection",
+        loading: "Syncing with server...",
+        confirmComplete: "⚠️ [Complete Inspection]\n\nAre you sure you want to complete this inspection?\nCompleted data will be locked.",
+        alertCoffeeName: "⚠ Please input the Coffee Name first.",
+        submitSuccess: "🎉 Data submitted successfully!",
+        errorFetch: "🛑 [Error] Failed to refresh draft list.",
+        errorSubmit: "❌ Communication error occurred. Please check console logs."
+      }
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      // 오늘 날짜 설정
+      document.getElementById('dateInput').value = new Date().toISOString().substring(0, 10);
+      
+      // 직전 입력 데이터 복원 (sessionStorage)
+      restoreOffsetMemory();
+
+      setupInteractions();
+      renderLanguageUI();
+
+      if (GOOGLE_WEB_APP_URL.includes("여기에_")) {
+        alert("🛑 [안내] 코드 맨 윗줄의 GOOGLE_WEB_APP_URL에 배포받으신 구글 스크립트 웹앱 주소를 입력하셔야 스프레드시트와 동기화가 이루어집니다.");
+      } else {
+        loadDraftList();
+      }
+    });
+
+    // 💡 [직전 입력 데이터 복원엔진]
+    function restoreOffsetMemory() {
+      const rotronicAwOffset = sessionStorage.getItem('rotronic_aw_offset');
+      const rotronicTempOffset = sessionStorage.getItem('rotronic_temp_offset');
+      const omixAw = sessionStorage.getItem('omix_aw');
+
+      if (rotronicAwOffset !== null) document.getElementById('rotronicAwOffsetInput').value = rotronicAwOffset;
+      if (rotronicTempOffset !== null) document.getElementById('rotronicTempOffsetInput').value = rotronicTempOffset;
+      if (omixAw !== null) document.getElementById('omixAwInput').value = omixAw;
+    }
+
+    // 💡 [직전 입력 데이터 저장엔진]
+    function saveOffsetMemory() {
+      const rotronicAwOffset = document.getElementById('rotronicAwOffsetInput').value;
+      const rotronicTempOffset = document.getElementById('rotronicTempOffsetInput').value;
+      const omixAw = document.getElementById('omixAwInput').value;
+
+      if (rotronicAwOffset) sessionStorage.setItem('rotronic_aw_offset', rotronicAwOffset);
+      if (rotronicTempOffset) sessionStorage.setItem('rotronic_temp_offset', rotronicTempOffset);
+      if (omixAw) sessionStorage.setItem('omix_aw', omixAw);
+    }
+
+    function toggleAccordion(button, forceClose = false) {
+      const content = button.nextElementSibling;
+      const arrow = button.querySelector('.arrow');
+
+      if (forceClose && !content.style.maxHeight && !content.classList.contains('closed')) {
+        content.classList.add('closed');
+        arrow.textContent = '▼';
+        return;
+      }
+
+      if (content.classList.contains('closed')) {
+        content.classList.remove('closed');
+        arrow.textContent = '▲';
+      } else {
+        content.classList.add('closed');
+        arrow.textContent = '▼';
+      }
+    }
+
+    function changeLanguage(lang) {
+      if(lang === currentLang) return;
+      currentLang = lang;
+      const btnKo = document.getElementById('btn-lang-ko');
+      const btnEn = document.getElementById('btn-lang-en');
+
+      if(lang === 'ko') {
+        btnKo.className = "px-2.5 py-1 text-xs font-bold rounded-md transition-all bg-white shadow-sm text-emerald-600";
+        btnEn.className = "px-2.5 py-1 text-xs font-bold rounded-md transition-all text-gray-400";
+      } else {
+        btnKo.className = "px-2.5 py-1 text-xs font-bold rounded-md transition-all text-gray-400";
+        btnEn.className = "px-2.5 py-1 text-xs font-bold rounded-md transition-all bg-white shadow-sm text-emerald-600";
+      }
+      renderLanguageUI();
+    }
+
+    function renderLanguageUI() {
+      const data = UI_LANG[currentLang];
+      document.getElementById('txt-app-title').textContent = data.title;
+      document.getElementById('lbl-draft').textContent = data.draftLabel;
+      document.getElementById('btn-refresh').textContent = data.refreshBtn;
+      document.getElementById('txt-loading').textContent = data.loading;
+
+      document.getElementById('lbl-sec1').textContent = data.sec1;
+      document.getElementById('lbl-sec2').textContent = data.sec2;
+      document.getElementById('lbl-sec3').textContent = data.sec3;
+      document.getElementById('lbl-sec4').textContent = data.sec4;
+      document.getElementById('lbl-sec5').textContent = data.sec5;
+
+      document.getElementById('lbl-coffeeName').textContent = data.coffeeName;
+      document.getElementById('lbl-grade').textContent = data.grade;
+      document.getElementById('lbl-date').textContent = data.date;
+
+      document.getElementById('lbl-humidityOrigin').textContent = data.humidityOrigin;
+      document.getElementById('lbl-waterActivityOrigin').textContent = data.waterActivityOrigin;
+      document.getElementById('lbl-awTempOrigin').textContent = data.awTempOrigin;
+
+      document.getElementById('lbl-rotronicAw').textContent = data.rotronicAw;
+      document.getElementById('lbl-rotronicTemp').textContent = data.rotronicTemp;
+      document.getElementById('lbl-rotronicAwOffset').textContent = data.rotronicAwOffset;
+      document.getElementById('lbl-rotronicTempOffset').textContent = data.rotronicTempOffset;
+
+      document.getElementById('lbl-omixAw').textContent = data.omixAw;
+      document.getElementById('lbl-omixTemp').textContent = data.omixTemp;
+
+      document.getElementById('lbl-lighttellsHum').textContent = data.lighttellsHum;
+      document.getElementById('lbl-lighttellsTemp').textContent = data.lighttellsTemp;
+      document.getElementById('lbl-lighttellsDens').textContent = data.lighttellsDens;
+
+      document.getElementById('lbl-coffmeterHum').textContent = data.coffmeterHum;
+      document.getElementById('lbl-coffmeterTemp').textContent = data.coffmeterTemp;
+      document.getElementById('lbl-coffmeterDens').textContent = data.coffmeterDens;
+
+      document.getElementById('lbl-hardness').textContent = data.hardness;
+      document.getElementById('lbl-size').textContent = data.size;
+      document.getElementById('lbl-ikawaProfile').textContent = data.ikawaProfile;
+
+      document.getElementById('btn-draft').textContent = data.btnDraft;
+      document.getElementById('btn-complete').textContent = data.btnComplete;
+
+      // "설정 안 함" 버튼 다국어 갱신
+      document.querySelector('#group_hardness [data-value=""]').textContent = (currentLang === 'ko') ? "설정 안 함" : "Not Set";
+      document.querySelector('#group_size [data-value=""]').textContent = (currentLang === 'ko') ? "설정 안 함" : "Not Set";
+    }
+
+    function setupInteractions() {
+      // 싱글 셀렉트 버튼 작동 (Grade, Hardness, Size 등)
+      document.addEventListener('click', function(e) {
+        if(e.target && e.target.classList.contains('select-single')) {
+          const parent = e.target.parentElement;
+          parent.querySelectorAll('.select-single').forEach(b => b.classList.remove('active-btn'));
+          e.target.classList.add('active-btn');
+        }
+      });
+
+      // 엔터 누를 시 textarea 제외하고 제출 방지
+      document.getElementById('qcForm').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+          e.preventDefault();
+        }
+      });
+
+      // 임시저장 불러오기 선택 이벤트
+      document.getElementById('draftSelect').addEventListener('change', function() {
+        loadSelectedDraft(this.value);
+      });
+    }
+
+    function getSingleValue(groupId) {
+      const active = document.getElementById(groupId).querySelector('.active-btn');
+      return active ? active.dataset.value : "";
+    }
+
+    function setSingleValue(groupId, value) {
+      const parent = document.getElementById(groupId);
+      parent.querySelectorAll('.select-single').forEach(b => b.classList.remove('active-btn'));
+      const target = parent.querySelector(`[data-value="${value}"]`) || parent.querySelector(`[data-value=""]`);
+      if(target) target.classList.add('active-btn');
+    }
+
+    // 소수점 유연 포맷팅 헬퍼
+    function formatDecimal(val, dec) {
+      if (val === undefined || val === null || val === "") return "";
+      const num = parseFloat(val);
+      return isNaN(num) ? "" : num.toFixed(dec);
+    }
+
+    // 구글 웹앱으로부터 임시저장 목록 땡겨오기
+    function loadDraftList() {
+      if (GOOGLE_WEB_APP_URL.includes("여기에_")) return;
+      const select = document.getElementById('draftSelect');
+      const defaultTxt = UI_LANG[currentLang].draftEmpty;
+      
+      select.innerHTML = `<option value="">⏳ Syncing...</option>`;
+
+      fetch(`${GOOGLE_WEB_APP_URL}?formType=measure`)
+        .then(res => res.json())
+        .then(data => {
+          // 구글 스크립트가 { drafts: [...] } 로 반환하므로 분기 처리
+          activeDraftsList = data.drafts || data;
+          select.innerHTML = `<option value="">${defaultTxt}</option>`;
+          if(activeDraftsList.length === 0) return;
+
+          activeDraftsList.forEach(item => {
+            const name = item.fields["Coffee"] || "Unknown Bean";
+            const date = item.fields["Date"] || "No Date";
+            select.innerHTML += `<option value="${item.rowId}">${name} (${date.substring(0,10)})</option>`;
+          });
+        })
+        .catch(err => {
+          alert(UI_LANG[currentLang].errorFetch + "\n동기화 주소 또는 인터넷 연결을 점검해 보세요.");
+          console.error(err);
+          select.innerHTML = `<option value="">Network Sync Error</option>`;
+        });
+    }
+
+    // 불러온 임시저장 레코드 데이터를 화면 폼에 채워넣기
+    function loadSelectedDraft(rowId) {
+      if(!rowId) {
+        document.getElementById('qcForm').reset();
+        document.getElementById('currentRowId').value = "";
+        document.querySelectorAll('.active-btn').forEach(b => b.classList.remove('active-btn'));
+        setSingleValue('group_hardness', '');
+        setSingleValue('group_size', '');
+        restoreOffsetMemory(); // 빈 작성 폼일 때는 저장된 오프셋 기억 복구
+        return;
+      }
+
+      const match = activeDraftsList.find(d => d.rowId == rowId);
+      if(!match) return;
+
+      const f = match.fields;
+      document.getElementById('currentRowId').value = rowId;
+      document.getElementById('coffeeNameInput').value = f["Coffee"] || "";
+      setSingleValue('group_grade', f["Grade"] || "");
+      document.getElementById('dateInput').value = f["Date"] ? f["Date"].substring(0,10) : "";
+
+      // 원산지
+      document.getElementById('humidityOriginInput').value = formatDecimal(f["Humidity-Origin"], 2);
+      document.getElementById('waterActivityOriginInput').value = formatDecimal(f["Water Activity-Origin"], 3);
+      document.getElementById('awTempOriginInput').value = formatDecimal(f["Aw Temp-Origin"], 2);
+
+      // Rotronic
+      document.getElementById('rotronicAwInput').value = formatDecimal(f["(Rotronic) Water Activity"], 3);
+      document.getElementById('rotronicTempInput').value = formatDecimal(f["(Rotronic) aW Temp"], 2);
+      document.getElementById('rotronicAwOffsetInput').value = formatDecimal(f["(Rotronic) Water Activity Offset"], 3);
+      document.getElementById('rotronicTempOffsetInput').value = formatDecimal(f["(Rotronic) aW Temp Offset"], 2);
+
+      // Omix
+      document.getElementById('omixAwInput').value = formatDecimal(f["(Omix) Water Activity"], 3);
+      document.getElementById('omixTempInput').value = formatDecimal(f["(Omix) aW Temp"], 1);
+
+      // Lighttells
+      document.getElementById('lighttellsHumInput').value = formatDecimal(f["(Lighttells) Humidity (%)"], 1);
+      document.getElementById('lighttellsTempInput').value = formatDecimal(f["(Lighttells) Humidity Temp"], 1);
+      document.getElementById('lighttellsDensInput').value = f["(Lighttells) Density (g/L)"] || "";
+
+      // CoffMeter
+      document.getElementById('coffmeterHumInput').value = formatDecimal(f["(CoffMeter) Humidity (%)"], 1);
+      document.getElementById('coffmeterTempInput').value = formatDecimal(f["(CoffMeter) Humidity Temp"], 1);
+      document.getElementById('coffmeterDensInput').value = f["(CoffMeter) Density (g/L)"] || "";
+
+      // 외관 & 기타
+      setSingleValue('group_hardness', f["Hardness"] || "");
+      setSingleValue('group_size', f["Size"] || "");
+      document.getElementById('ikawaProfileInput').value = f["Ikawa Profile"] || "";
+    }
+
+    // 서버에 데이터 임시저장/최종완료 제출
+    function submitData(statusMode) {
+      if (GOOGLE_WEB_APP_URL.includes("여기에_")) {
+        alert("🛑 구글 웹앱 URL이 설정되지 않아 저장이 불가능합니다.");
+        return;
+      }
+
+      const coffeeName = document.getElementById('coffeeNameInput').value.trim();
+      if(!coffeeName) {
+        alert(UI_LANG[currentLang].alertCoffeeName);
+        return;
+      }
+
+      if(statusMode === 'Completed') {
+        const checkMsg = UI_LANG[currentLang].confirmComplete;
+        if(!confirm(checkMsg)) return;
+      }
+
+      // 오프셋/특수 기기 데이터 임시 메모리에 기억저장
+      saveOffsetMemory();
+
+      // 로더 화면 표시
+      document.getElementById('loader').classList.remove('hidden');
+
+      let rowId = document.getElementById('currentRowId').value;
+      if(!rowId) {
+        rowId = "ID_" + Date.now() + "_" + Math.floor(Math.random()*1000);
+      }
+
+      const fields = {};
+      fields["Coffee"] = coffeeName;
+      fields["Grade"] = getSingleValue('group_grade');
+      fields["Date"] = document.getElementById('dateInput').value;
+
+      // 소수점 맞춤 파싱 후 저장 (빈 값은 공백 전송하여 스프레드시트 빈셀 처리)
+      const parseVal = (id, decimal) => {
+        const raw = document.getElementById(id).value;
+        if (raw === "") return "";
+        const parsed = parseFloat(raw);
+        return isNaN(parsed) ? "" : Number(parsed.toFixed(decimal));
+      };
+
+      const parseInteger = (id) => {
+        const raw = document.getElementById(id).value;
+        if (raw === "") return "";
+        const parsed = parseInt(raw, 10);
+        return isNaN(parsed) ? "" : parsed;
+      };
+
+      fields["Humidity-Origin"] = parseVal('humidityOriginInput', 2);
+      fields["Water Activity-Origin"] = parseVal('waterActivityOriginInput', 3);
+      fields["Aw Temp-Origin"] = parseVal('awTempOriginInput', 2);
+
+      fields["(Rotronic) Water Activity"] = parseVal('rotronicAwInput', 3);
+      fields["(Rotronic) aW Temp"] = parseVal('rotronicTempInput', 2);
+      fields["(Rotronic) Water Activity Offset"] = parseVal('rotronicAwOffsetInput', 3);
+      fields["(Rotronic) aW Temp Offset"] = parseVal('rotronicTempOffsetInput', 2);
+
+      fields["(Omix) Water Activity"] = parseVal('omixAwInput', 3);
+      fields["(Omix) aW Temp"] = parseVal('omixTempInput', 1);
+
+      fields["(Lighttells) Humidity (%)"] = parseVal('lighttellsHumInput', 1);
+      fields["(Lighttells) Humidity Temp"] = parseVal('lighttellsTempInput', 1);
+      fields["(Lighttells) Density (g/L)"] = parseInteger('lighttellsDensInput');
+
+      fields["(CoffMeter) Humidity (%)"] = parseVal('coffmeterHumInput', 1);
+      fields["(CoffMeter) Humidity Temp"] = parseVal('coffmeterTempInput', 1);
+      fields["(CoffMeter) Density (g/L)"] = parseInteger('coffmeterDensInput');
+
+      fields["Hardness"] = getSingleValue('group_hardness');
+      fields["Size"] = getSingleValue('group_size');
+      fields["Ikawa Profile"] = document.getElementById('ikawaProfileInput').value.trim();
+
+      // 에어테이블/스프레드시트에 Row_ID와 Status 반영
+      fields["Row_ID"] = rowId;
+      fields["Row ID"] = rowId;
+
+      const payload = {
+        formType: "measure",
+        rowId: rowId,
+        status: statusMode,
+        fields: fields
+      };
+
+      const formInputs = document.getElementById('qcForm').querySelectorAll('button, input');
+      formInputs.forEach(i => i.disabled = true);
+
+      fetch(GOOGLE_WEB_APP_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(() => {
+        document.getElementById('loader').classList.add('hidden');
+        alert(UI_LANG[currentLang].submitSuccess);
+        location.reload();
+      })
+      .catch(err => {
+        document.getElementById('loader').classList.add('hidden');
+        alert(UI_LANG[currentLang].errorSubmit);
+        console.error(err);
+        formInputs.forEach(i => i.disabled = false);
+      });
+    }
+  </script>
+</body>
+</html>
