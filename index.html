@@ -218,7 +218,6 @@
           <div>
             <label id="lbl-hardness" class="block text-xs font-semibold text-gray-600 mb-1.5">경도 (Hardness)</label>
             <div class="grid grid-cols-3 gap-2" id="group_hardness">
-              <button type="button" data-value="" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single active-btn">설정 안 함</button>
               <button type="button" data-value="Low" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single">Low</button>
               <button type="button" data-value="Medium-Low" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single">Med-Low</button>
               <button type="button" data-value="Medium" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single">Medium</button>
@@ -230,7 +229,6 @@
           <div>
             <label id="lbl-size" class="block text-xs font-semibold text-gray-600 mb-1.5">크기 (Size)</label>
             <div class="grid grid-cols-3 gap-2" id="group_size">
-              <button type="button" data-value="" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single active-btn">설정 안 함</button>
               <button type="button" data-value="Small" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single">Small</button>
               <button type="button" data-value="Medium-Small" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single">Med-Small</button>
               <button type="button" data-value="Medium" class="py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 select-single">Medium</button>
@@ -471,9 +469,7 @@
       document.getElementById('btn-draft').textContent = data.btnDraft;
       document.getElementById('btn-complete').textContent = data.btnComplete;
 
-      // "설정 안 함" 버튼 다국어 갱신
-      document.querySelector('#group_hardness [data-value=""]').textContent = (currentLang === 'ko') ? "설정 안 함" : "Not Set";
-      document.querySelector('#group_size [data-value=""]').textContent = (currentLang === 'ko') ? "설정 안 함" : "Not Set";
+
     }
 
     function setupInteractions() {
@@ -504,10 +500,13 @@
       return active ? active.dataset.value : "";
     }
 
-    function setSingleValue(groupId, value) {
+        function setSingleValue(groupId, value) {
       const parent = document.getElementById(groupId);
       parent.querySelectorAll('.select-single').forEach(b => b.classList.remove('active-btn'));
-      const target = parent.querySelector(`[data-value="${value}"]`) || parent.querySelector(`[data-value=""]`);
+      if (value === undefined || value === null || value === "") return;
+      const target = parent.querySelector(`[data-value="${value}"]`);
+      if(target) target.classList.add('active-btn');
+    }"]`) || parent.querySelector(`[data-value=""]`);
       if(target) target.classList.add('active-btn');
     }
 
